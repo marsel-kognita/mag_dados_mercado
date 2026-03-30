@@ -1,0 +1,40 @@
+# Dados baixados e processados
+data/
+
+# Ambiente virtual Python
+.venv/
+venv/
+env/
+
+# Arquivos de ambiente/local
+.env
+.env.*
+*.local
+
+# Caches Python/Jupyter
+__pycache__/
+.ipynb_checkpoints/
+*.py[cod]
+
+# Build/empacotamento Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Testes e cobertura
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Type-check/lint/tooling
+.mypy_cache/
+.ruff_cache/
+.pyre/
+
+# IDE e sistema operacional
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
