@@ -1,55 +1,67 @@
 # mag_dados_mercado
 
-Notebook-first project for manual file ingestion and sequential processing.
+Pipeline ETL para ingestão, padronização, harmonização e sumarização das **Bases Anonimizadas da SUSEP** (auto, compreensivo e rural).
 
-## New workflow from scratch
+## Visão geral
 
-1. Manually copy source files into `raw/data`.
-2. Run notebooks in sequence from 1 to 5.
-3. Collect outputs in `outputs` and intermediate files in `staging/data` and `processed/data`.
+O projeto processa ~235 M de linhas de dados de seguros publicados pela SUSEP, passando por 8 etapas (A–H) de ETL e uma etapa final de sumarização geográfica.
 
-## Folder structure
+## Estrutura de pastas
 
-- `raw/data`: manual input files (ZIP, CSV, TXT)
-- `staging/data`: extracted content from ZIP files
-- `processed/data`: standardized parquet/table outputs
-- `outputs`: reports and final consolidated CSVs
-- `notebooks`: executable sequence
+```
+.
+├── ETL_Etapas_A_D.ipynb              # Etapas A–D: download, extração, padronização, metadados
+├── ETL_Etapas_E_H.ipynb              # Etapas E–H: merge, harmonização, qualidade, exportação
+├── Sumarizacao_Municipios.ipynb      # Sumarização geográfica (cep_per / uf / município)
+├── PLANO_BASES_ANONIMIZADAS_SUSEP.md # Plano detalhado do pipeline
+├── requirements.txt
+├── README.md
+├── data/
+│   ├── gov_br/susep/.../bases-anonimizadas/   # Dados brutos por ramo
+│   │   ├── bases_auto/   (raw/ extracted/ standardized/ metadata/)
+│   │   ├── bases_comp/
+│   │   └── bases_rural/
+│   └── unified/                                # Saída consolidada
+│       ├── parquet/
+│       │   ├── harmonizado_riscos/    # Parquets harmonizados R_AUTO, R_COMP, R_RURAL
+│       │   └── harmonizado_sinistros/ # Parquets harmonizados S_AUTO, S_COMP, S_RURAL
+│       ├── csv/                       # CSVs de sumarização
+│       ├── dictionaries/
+│       ├── manifestos/
+│       └── quality_reports/
+```
 
-## Notebook sequence
+## Notebooks — ordem de execução
 
-1. `notebooks/01_setup_workspace.ipynb`
-  - Initializes folders and writes base config file.
-2. `notebooks/02_inventory_raw_files.ipynb`
-  - Inventories all files present in `raw/data`.
-3. `notebooks/03_prepare_staging.ipynb`
-  - Extracts ZIP files into `staging/data` and logs extraction status.
-4. `notebooks/04_build_standardized_tables.ipynb`
-  - Loads staged files and builds a standardized dataset.
-5. `notebooks/05_consolidate_latest_periods.ipynb`
-  - Selects latest 2 periods by branch and exports consolidated file.
+| # | Notebook | Descrição |
+|---|----------|-----------|
+| 1 | `ETL_Etapas_A_D.ipynb` | **A** Download dos ZIPs da SUSEP · **B** Extração de CSVs · **C** Padronização (encoding, separador, tipos) · **D** Geração de metadados e manifestos |
+| 2 | `ETL_Etapas_E_H.ipynb` | **E** Merge dos CSVs padronizados em Parquet unificado · **F** Harmonização de schemas (tipos, nomes) · **G** Controle de qualidade · **H** Exportação final |
+| 3 | `Sumarizacao_Municipios.ipynb` | Merge R↔S por ramo via chaves de integração, agregação geográfica (auto→`cep_per`, comp→`uf`, rural→`munic`) e cálculo de sinistralidade |
 
-## Environment
+## Stack técnica
 
-Use your conda environment:
+| Componente | Uso |
+|------------|-----|
+| **PyArrow** | ETL streaming (~235 M linhas) — Etapas A–H |
+| **Polars** (lazy) | Sumarização — `scan_parquet` → `group_by` → `collect` sem materializar tudo em RAM |
+| **Pandas** | Exibição de tabelas finais já agregadas (poucos milhares de linhas) |
+
+## Ambiente
 
 ```bash
-conda activate mag_dados_mercado
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 jupyter lab
 ```
 
-## Main generated files
+## Saídas principais
 
-- `outputs/pipeline_config.json`
-- `outputs/raw_inventory.csv`
-- `outputs/staging_extraction_report.csv`
-- `processed/data/standardized_raw.parquet`
-- `outputs/standardized_summary.csv`
-- `outputs/latest_periods_by_branch.csv`
-- `outputs/consolidated_latest_2_periods.csv`
-
-## Notes
-
-- This reset removed the previous Python CLI/package pipeline.
-- The notebooks are now the main and only execution path.
-- Business-field mapping can be refined inside notebooks 04 and 05 after validating your real source layouts.
+- `data/unified/parquet/harmonizado_riscos/*.parquet` — riscos harmonizados por ramo
+- `data/unified/parquet/harmonizado_sinistros/*.parquet` — sinistros harmonizados por ramo
+- `data/unified/csv/sumarizacao_auto_por_cep_per.csv` — prêmios e sinistros por CEP de pernoite
+- `data/unified/csv/sumarizacao_comp_por_uf.csv` — prêmios e sinistros por UF
+- `data/unified/csv/sumarizacao_rural_por_munic.csv` — prêmios e sinistros por município
+- `data/unified/manifestos/` — checksums e resumos de merge
+- `data/unified/quality_reports/` — relatórios de qualidade
